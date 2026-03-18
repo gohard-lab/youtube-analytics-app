@@ -25,10 +25,16 @@ def load_data():
         
     df = pd.DataFrame(response.data)
     
-    # 시간대(Timezone)를 한국 시간(KST)으로 변환하는 핵심 코드
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    # df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul')
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+    # # 시간대(Timezone)를 한국 시간(KST)으로 변환하는 핵심 코드
+    # df['timestamp'] = pd.to_datetime(df['timestamp'])
+    # # df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul')
+    # df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+
+    # 1. 섞여 있는 모든 날짜 형식을 유연하게 읽어들입니다. (정말 이상한 데이터는 에러 내지 말고 빈칸(NaT) 처리)
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', errors='coerce')
+
+    # 2. 대시보드 그래프가 에러 나지 않도록, 시간대 꼬리표(+00:00)가 있는 애들은 꼬리표를 강제로 다 떼어버립니다.
+    df['timestamp'] = df['timestamp'].dt.tz_localize(None)
 
     return df
 
