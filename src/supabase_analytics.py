@@ -27,8 +27,9 @@ def load_data():
     
     # 시간대(Timezone)를 한국 시간(KST)으로 변환하는 핵심 코드
     df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul')
-    
+    # df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+
     return df
 
 try:
