@@ -17,18 +17,18 @@ st.markdown("전 세계 어디서 우리 프로그램을 사용하고 있는지 
 
 @st.cache_data(ttl=30)
 def load_data():
-    # 데이터를 모두 읽어옵니다. (필요하다면 .eq('app_name', '테슬라_비전_시뮬레이터')를 추가할 수 있습니다)
+    # 데이터를 모두 읽어옵니다.
     response = supabase.table('usage_logs').select("*").execute()
     
     if not response.data:
-        return pd.DataFrame() # 데이터가 진짜 없으면 빈 프레임 반환
+        return pd.DataFrame() 
         
     df = pd.DataFrame(response.data)
     
-    # 1. 섞여 있는 모든 날짜 형식을 유연하게 읽어들입니다. (정말 이상한 데이터는 에러 내지 말고 빈칸(NaT) 처리)
+    # 1. 섞여 있는 모든 날짜 형식을 유연하게 읽어들입니다.
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', errors='coerce')
 
-    # 2. 대시보드 그래프가 에러 나지 않도록, 시간대 꼬리표(+00:00)가 있는 애들은 꼬리표를 강제로 다 떼어버립니다.
+    # 2. 대시보드 그래프가 에러 나지 않도록 꼬리표 강제 제거
     df['timestamp'] = df['timestamp'].dt.tz_localize(None)
 
     return df
@@ -41,10 +41,7 @@ try:
     else:
         # --- [날짜 필터 추가 영역] ---
         st.sidebar.header("🗓️ 기간 필터")
-        # 1. Supabase 데이터를 시간대 정보가 포함된 datetime으로 변환
         df['timestamp'] = pd.to_datetime(df['timestamp'], utc=True)
-        
-        # 2. 오늘 날짜도 UTC 기준으로 생성 (시간대 일치)
         today = pd.Timestamp.now(tz='UTC').normalize()
         
         filter_option = st.sidebar.selectbox(
@@ -60,17 +57,14 @@ try:
         elif filter_option == "이번 달":
             df = df[df['timestamp'].dt.month == today.month]
         
-        # 데이터가 필터링된 후 개수 확인
         if df.empty:
             st.warning(f"선택하신 '{filter_option}' 기간에는 데이터가 없습니다.")
             st.stop()
         # -----------------------------
 
         # --- [프로그램 필터 추가 영역] ---
-        st.sidebar.divider() # 시각적인 구분선
+        st.sidebar.divider() 
         
-        # DB에 있는 고유한 앱 이름들을 모아서 리스트로 만듭니다.
-        # 기존 데이터의 결측치를 방지하기 위해 'Unknown App' 처리
         df['app_name'] = df['app_name'].fillna('Unknown App')
         app_list = ["전체 프로그램"] + df['app_name'].unique().tolist()
         
@@ -78,6 +72,15 @@ try:
             "💻 프로그램 선택",
             app_list
         )
+
+        # 🚨 [핵심 변경 사항] 프로그램 콤보박스 바로 아래에 조회 버튼 배치
+        st.sidebar.write("") # 약간의 시각적 여백 추가
+        if st.sidebar.button("🔄 조건에 맞게 최신 데이터 조회", use_container_width=True):
+            # 1. DB에서 가장 최신 데이터를 가져오기 위해 캐시 삭제
+            load_data.clear()
+            # 2. 화면 전체 새로고침 (선택된 조건 유지된 상태로 새 데이터 반영)
+            st.rerun()
+        st.sidebar.divider()
 
         # '전체 프로그램'이 아닌 특정 앱을 선택했을 때만 데이터를 필터링합니다.
         if selected_app != "전체 프로그램":
@@ -122,7 +125,6 @@ try:
                     height=800
                 )
                 
-                # 레이아웃 설정 최적화
                 fig_map.update_layout(
                     margin={"r":0, "t":30, "l":0, "b":0},
                     mapbox=dict(
@@ -131,7 +133,6 @@ try:
                     )
                 )
 
-                # st.plotly_chart 호출 시 'config' 옵션을 통해 휠 줌을 강제 활성화
                 st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
@@ -141,22 +142,11 @@ try:
                 st.warning("좌표(lat, lon) 데이터가 포함된 새 로그가 필요합니다.")
 
         # ---------------------------------------------------------
-        # 🚨 [새로 추가된 영역] 하단 로그 테이블 & 새로고침 버튼
+        # 🚨 [가로 스크롤 반영] 화면 하단의 옛날 버튼은 지우고 그리드만 남김
         # ---------------------------------------------------------
-        st.divider() # 시각적 분리선
-        
-        # 버튼을 우측에 깔끔하게 배치하기 위해 컬럼 분할 (8:2 비율)
-        col_empty, col_btn = st.columns([8, 2])
-        
-        with col_btn:
-            if st.button("🔄 최신 데이터 조회", use_container_width=True):
-                # 1. DB에서 데이터를 새로 가져오기 위해 캐시를 강제로 지웁니다.
-                load_data.clear()
-                # 2. 화면 전체를 위에서부터 다시 실행합니다.
-                st.rerun()
-
-        # 하단 전체 로그 테이블
+        st.divider() 
         with st.expander("전체 로그 데이터 보기"):
+            # use_container_width=True 를 제거하여 원본 크기로 쾌적하게 가로 스크롤 가능!
             st.dataframe(df.sort_values(by='timestamp', ascending=False))
 
 except Exception as e:
