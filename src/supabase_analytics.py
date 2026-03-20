@@ -4,13 +4,14 @@ import plotly.express as px
 from tracker import get_supabase_client
 from supabase import create_client
 
+# 🚨 [해결] 무조건 다른 모든 st. 명령어보다 먼저 와야 합니다!
+st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
+
 # 1. secrets.toml에서 정보를 안전하게 불러옵니다.
 SUPABASE_URL = st.secrets["supabase"]["url"]
 SUPABASE_KEY = st.secrets["supabase"]["key"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
 
 st.title("🌐 글로벌 사용량 분석 대시보드")
 st.markdown("전 세계 어디서 우리 프로그램을 사용하고 있는지 실시간으로 확인합니다.")
