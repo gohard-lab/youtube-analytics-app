@@ -25,11 +25,6 @@ def load_data():
         
     df = pd.DataFrame(response.data)
     
-    # # 시간대(Timezone)를 한국 시간(KST)으로 변환하는 핵심 코드
-    # df['timestamp'] = pd.to_datetime(df['timestamp'])
-    # # df['timestamp'] = df['timestamp'].dt.tz_convert('Asia/Seoul')
-    # df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
-
     # 1. 섞여 있는 모든 날짜 형식을 유연하게 읽어들입니다. (정말 이상한 데이터는 에러 내지 말고 빈칸(NaT) 처리)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', errors='coerce')
 
@@ -127,29 +122,42 @@ try:
                     height=800
                 )
                 
-                # 에러를 일으킨 scrollzoom 대신, 안전하게 줌 기능을 포함한 레이아웃 설정
                 # 레이아웃 설정 최적화
                 fig_map.update_layout(
                     margin={"r":0, "t":30, "l":0, "b":0},
-                    # mapbox 객체 내부의 'config'와 유사한 설정을 통해 제어합니다.
                     mapbox=dict(
                         center=dict(lat=36.5, lon=127.5),
                         zoom=6.5
                     )
                 )
 
-                # st.plotly_chart 호출 시 'config' 옵션을 통해 휠 줌을 강제 활성화합니다.
+                # st.plotly_chart 호출 시 'config' 옵션을 통해 휠 줌을 강제 활성화
                 st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    config={'scrollZoom': True} # 이 한 줄이 휠 줌을 강제로 깨웁니다!
+                    config={'scrollZoom': True} 
                 )
             else:
                 st.warning("좌표(lat, lon) 데이터가 포함된 새 로그가 필요합니다.")
 
+        # ---------------------------------------------------------
+        # 🚨 [새로 추가된 영역] 하단 로그 테이블 & 새로고침 버튼
+        # ---------------------------------------------------------
+        st.divider() # 시각적 분리선
+        
+        # 버튼을 우측에 깔끔하게 배치하기 위해 컬럼 분할 (8:2 비율)
+        col_empty, col_btn = st.columns([8, 2])
+        
+        with col_btn:
+            if st.button("🔄 최신 데이터 조회", use_container_width=True):
+                # 1. DB에서 데이터를 새로 가져오기 위해 캐시를 강제로 지웁니다.
+                load_data.clear()
+                # 2. 화면 전체를 위에서부터 다시 실행합니다.
+                st.rerun()
+
         # 하단 전체 로그 테이블
         with st.expander("전체 로그 데이터 보기"):
-            st.dataframe(df.sort_values(by='timestamp', ascending=False), use_container_width=True)
+            st.dataframe(df.sort_values(by='timestamp', ascending=False))
 
 except Exception as e:
     st.error(f"대시보드 로딩 중 에러 발생: {e}")
