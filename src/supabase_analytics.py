@@ -144,56 +144,101 @@ try:
                 st.warning("좌표(lat, lon) 데이터가 포함된 새 로그가 필요합니다.")
 
         # ---------------------------------------------------------
-        # 🚨 [우회 방법] 구버전 호환용 데이터 에디터 기반 체크박스 삭제
+        # 🚨 [최종 완성] 엑셀처럼 표 직접 수정 + 체크박스 일괄 삭제
         # ---------------------------------------------------------
         st.divider() 
         with st.expander("전체 로그 데이터 보기 및 관리", expanded=True):
-            st.markdown("👇 **표 왼쪽의 체크박스를 선택하여 불필요한 로그를 일괄 삭제할 수 있습니다.**")
-            
-            # 최신순 정렬
+            # 1. 최신순 정렬 및 데이터 준비
             display_df = df.sort_values(by='timestamp', ascending=False).copy()
             
-            # 1. 맨 앞에 '선택' 이라는 이름의 체크박스(Boolean) 열을 강제로 추가합니다.
-            display_df.insert(0, "선택", False)
+            # 2. 상단 컨트롤 레이아웃 (전체 선택 체크박스)
+            col_ctrl1, col_ctrl2 = st.columns([1, 4])
+            with col_ctrl1:
+                select_all = st.checkbox("전체 선택", value=False, key="select_all_logs")
             
-            # 2. st.dataframe 대신 st.data_editor를 사용하여 체크박스를 클릭할 수 있게 만듭니다.
-            # disabled 옵션을 통해 '선택' 열 빼고 나머지 원본 데이터는 수정하지 못하게 막습니다.
+            st.markdown("👇 **표의 셀을 더블클릭하여 내용을 직접 수정**하거나, 체크박스를 선택해 **일괄 삭제**할 수 있습니다.")
+            
+            # 3. 데이터프레임에 '선택' 열 추가
+            display_df.insert(0, "선택", select_all)
+            
+            # 4. st.data_editor 실행 (id, session_id 제외 모두 잠금 해제!)
             edited_df = st.data_editor(
                 display_df,
                 hide_index=True,
                 use_container_width=True,
-                disabled=df.columns.tolist() 
+                disabled=["id", "session_id"], # 👈 요구사항 완벽 반영! 두 컬럼 빼고 전부 수정 가능
+                key="log_editor"
             )
             
-            # 3. 체크박스에 체크('선택' == True)된 행만 걸러냅니다.
+            # ==========================================
+            # ✍️ 기능 1: 그리드 직접 수정(Edit) DB 자동 저장
+            # ==========================================
+            if "log_editor" in st.session_state:
+                edited_rows = st.session_state.log_editor.get("edited_rows", {})
+                
+                # 체크박스('선택')만 클릭한 경우는 DB 수정에서 제외하고 실제 텍스트 수정한 것만 걸러냄
+                actual_changes = {}
+                for row_idx, changes in edited_rows.items():
+                    real_edits = {k: v for k, v in changes.items() if k != "선택"}
+                    if real_edits:
+                        actual_changes[row_idx] = real_edits
+                        
+                # 수정한 내역이 하나라도 생기면 '저장 버튼'이 마법처럼 등장합니다.
+                if actual_changes:
+                    st.info(f"💡 **{len(actual_changes)}개의 행**이 수정되었습니다. 아래 버튼을 눌러 DB에 반영해 주세요.")
+                    if st.button("💾 수정한 데이터 DB에 일괄 저장", type="primary"):
+                        try:
+                            for row_idx, col_changes in actual_changes.items():
+                                row_id = int(display_df.iloc[int(row_idx)]['id'])
+                                
+                                # 날짜/시간(Timestamp)이나 빈 값(NaN)이 들어가도 DB 에러가 나지 않도록 안전하게 변환
+                                safe_changes = {}
+                                for k, v in col_changes.items():
+                                    if pd.isnull(v):
+                                        safe_changes[k] = None
+                                    elif hasattr(v, "isoformat"):
+                                        safe_changes[k] = v.isoformat()
+                                    else:
+                                        safe_changes[k] = v
+                                        
+                                # Supabase DB 업데이트
+                                supabase.table("usage_logs").update(safe_changes).eq("id", row_id).execute()
+                            
+                            st.success("✅ 변경된 데이터가 DB에 성공적으로 저장되었습니다!")
+                            load_data.clear()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"저장 중 오류 발생: {e}")
+
+            # ==========================================
+            # 🗑️ 기능 2: 체크박스 선택 다중 삭제 (Delete)
+            # ==========================================
             selected_rows = edited_df[edited_df["선택"] == True]
             
-            # 항목이 1개 이상 선택되었을 때만 삭제 폼 렌더링
             if len(selected_rows) > 0:
-                st.warning(f"총 **{len(selected_rows)}개**의 로그가 선택되었습니다.")
+                st.warning(f"⚠️ 총 **{len(selected_rows)}개**의 로그가 선택되었습니다.")
                 
-                with st.form("delete_logs_form"):
-                    confirm_delete = st.checkbox("🚨 선택한 로그를 영구 삭제하는 것에 동의합니다.")
-                    btn_delete = st.form_submit_button("🗑️ 선택 항목 영구 삭제", type="primary")
+                with st.form("bulk_delete_form"):
+                    # 체리피커 방지용 깃허브 Star 유도 문구
+                    st.caption(
+                        "💡 소스코드만 날름 가져가는 분들이 많습니다. 개발자의 땀과 노력에 대한 최소한의 예의로 "
+                        "[GitHub Star ⭐](https://github.com/gohard-lab)를 부탁드립니다!"
+                    )
+                    confirm_bulk = st.checkbox("🚨 선택한 모든 로그를 영구 삭제하는 것에 동의합니다.")
+                    btn_bulk_delete = st.form_submit_button("🗑️ 선택 항목 영구 삭제")
                     
-                    if btn_delete:
-                        if confirm_delete:
+                    if btn_bulk_delete:
+                        if confirm_bulk:
                             try:
-                                # 선택된 행들의 실제 DB 'id' 값을 리스트로 추출
                                 selected_ids = selected_rows['id'].tolist()
-                                
-                                # Supabase의 in_() 메서드를 활용하여 일괄 삭제
                                 supabase.table("usage_logs").delete().in_("id", selected_ids).execute()
-                                
-                                st.success(f"✅ {len(selected_ids)}개의 로그가 성공적으로 삭제되었습니다!")
-                                
-                                # 데이터가 변경되었으니 캐시를 비우고 화면 새로고침
+                                st.success(f"✅ {len(selected_ids)}개의 로그가 완벽하게 삭제되었습니다!")
                                 load_data.clear()
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"삭제 중 오류가 발생했습니다: {e}")
+                                st.error(f"오류: {e}")
                         else:
-                            st.error("삭제를 진행하려면 '영구 삭제 동의' 체크박스를 먼저 선택해 주세요.")
+                            st.error("삭제 동의 체크박스를 선택해 주세요.")
 
 except Exception as e:
     st.error(f"대시보드 로딩 중 에러 발생: {e}")
