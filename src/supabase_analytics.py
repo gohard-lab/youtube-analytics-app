@@ -144,7 +144,7 @@ try:
                 st.warning("좌표(lat, lon) 데이터가 포함된 새 로그가 필요합니다.")
 
         # ---------------------------------------------------------
-        # 🚨 로그 데이터 그리드 및 체크박스 일괄 삭제 기능
+        # 🚨 [우회 방법] 구버전 호환용 데이터 에디터 기반 체크박스 삭제
         # ---------------------------------------------------------
         st.divider() 
         with st.expander("전체 로그 데이터 보기 및 관리", expanded=True):
@@ -153,15 +153,20 @@ try:
             # 최신순 정렬
             display_df = df.sort_values(by='timestamp', ascending=False).copy()
             
-            # 다중 선택 모드가 켜진 데이터프레임
-            selection_event = st.dataframe(
+            # 1. 맨 앞에 '선택' 이라는 이름의 체크박스(Boolean) 열을 강제로 추가합니다.
+            display_df.insert(0, "선택", False)
+            
+            # 2. st.dataframe 대신 st.data_editor를 사용하여 체크박스를 클릭할 수 있게 만듭니다.
+            # disabled 옵션을 통해 '선택' 열 빼고 나머지 원본 데이터는 수정하지 못하게 막습니다.
+            edited_df = st.data_editor(
                 display_df,
-                selection_mode="multi-row",
-                on_select="rerun",
-                hide_index=True
+                hide_index=True,
+                use_container_width=True,
+                disabled=df.columns.tolist() 
             )
             
-            selected_rows = selection_event.selection.rows
+            # 3. 체크박스에 체크('선택' == True)된 행만 걸러냅니다.
+            selected_rows = edited_df[edited_df["선택"] == True]
             
             # 항목이 1개 이상 선택되었을 때만 삭제 폼 렌더링
             if len(selected_rows) > 0:
@@ -175,7 +180,7 @@ try:
                         if confirm_delete:
                             try:
                                 # 선택된 행들의 실제 DB 'id' 값을 리스트로 추출
-                                selected_ids = display_df.iloc[selected_rows]['id'].tolist()
+                                selected_ids = selected_rows['id'].tolist()
                                 
                                 # Supabase의 in_() 메서드를 활용하여 일괄 삭제
                                 supabase.table("usage_logs").delete().in_("id", selected_ids).execute()
