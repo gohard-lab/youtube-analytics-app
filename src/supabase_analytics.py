@@ -143,12 +143,51 @@ try:
                 st.warning("좌표(lat, lon) 데이터가 포함된 새 로그가 필요합니다.")
 
         # ---------------------------------------------------------
-        # 🚨 [가로 스크롤 반영] 화면 하단의 옛날 버튼은 지우고 그리드만 남김
+        # 🚨 로그 데이터 그리드 및 체크박스 일괄 삭제 기능
         # ---------------------------------------------------------
         st.divider() 
-        with st.expander("전체 로그 데이터 보기"):
-            # use_container_width=True 를 제거하여 원본 크기로 쾌적하게 가로 스크롤 가능!
-            st.dataframe(df.sort_values(by='timestamp', ascending=False))
+        with st.expander("전체 로그 데이터 보기 및 관리", expanded=True):
+            st.markdown("👇 **표 왼쪽의 체크박스를 선택하여 불필요한 로그를 일괄 삭제할 수 있습니다.**")
+            
+            # 최신순 정렬
+            display_df = df.sort_values(by='timestamp', ascending=False).copy()
+            
+            # 다중 선택 모드가 켜진 데이터프레임
+            selection_event = st.dataframe(
+                display_df,
+                selection_mode="multi-row",
+                on_select="rerun",
+                hide_index=True
+            )
+            
+            selected_rows = selection_event.selection.rows
+            
+            # 항목이 1개 이상 선택되었을 때만 삭제 폼 렌더링
+            if len(selected_rows) > 0:
+                st.warning(f"총 **{len(selected_rows)}개**의 로그가 선택되었습니다.")
+                
+                with st.form("delete_logs_form"):
+                    confirm_delete = st.checkbox("🚨 선택한 로그를 영구 삭제하는 것에 동의합니다.")
+                    btn_delete = st.form_submit_button("🗑️ 선택 항목 영구 삭제", type="primary")
+                    
+                    if btn_delete:
+                        if confirm_delete:
+                            try:
+                                # 선택된 행들의 실제 DB 'id' 값을 리스트로 추출
+                                selected_ids = display_df.iloc[selected_rows]['id'].tolist()
+                                
+                                # Supabase의 in_() 메서드를 활용하여 일괄 삭제
+                                supabase.table("usage_logs").delete().in_("id", selected_ids).execute()
+                                
+                                st.success(f"✅ {len(selected_ids)}개의 로그가 성공적으로 삭제되었습니다!")
+                                
+                                # 데이터가 변경되었으니 캐시를 비우고 화면 새로고침
+                                load_data.clear()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"삭제 중 오류가 발생했습니다: {e}")
+                        else:
+                            st.error("삭제를 진행하려면 '영구 삭제 동의' 체크박스를 먼저 선택해 주세요.")
 
 except Exception as e:
     st.error(f"대시보드 로딩 중 에러 발생: {e}")
