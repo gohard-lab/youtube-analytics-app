@@ -4,7 +4,7 @@ import plotly.express as px
 from tracker import get_supabase_client
 from supabase import create_client
 
-# 🚨 [해결] 무조건 다른 모든 st. 명령어보다 먼저 와야 합니다!
+# 🚨 [해결] 무조건 다른 모든 st. 명령어보다 먼저 와야 합니다! (최상단 배치 완료)
 st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
 
 # 1. secrets.toml에서 정보를 안전하게 불러옵니다.
@@ -74,7 +74,7 @@ try:
             app_list
         )
 
-        # 🚨 [핵심 변경 사항] 프로그램 콤보박스 바로 아래에 조회 버튼 배치
+        # 🚨 프로그램 콤보박스 바로 아래에 조회 버튼 배치
         st.sidebar.write("") # 약간의 시각적 여백 추가
         if st.sidebar.button("🔄 조건에 맞게 최신 데이터 조회", use_container_width=True):
             # 1. DB에서 가장 최신 데이터를 가져오기 위해 캐시 삭제
