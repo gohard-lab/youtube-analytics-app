@@ -1,11 +1,12 @@
 import streamlit as st
+
+# 🚨 [해결] 무조건 다른 모든 st. 명령어보다 먼저 와야 함! (최상단 배치 완료)
+st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
+
 import pandas as pd
 import plotly.express as px
 from tracker import get_supabase_client
 from supabase import create_client
-
-# 🚨 [해결] 무조건 다른 모든 st. 명령어보다 먼저 와야 합니다! (최상단 배치 완료)
-st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
 
 # 1. secrets.toml에서 정보를 안전하게 불러옵니다.
 SUPABASE_URL = st.secrets["supabase"]["url"]
