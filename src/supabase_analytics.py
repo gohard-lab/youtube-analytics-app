@@ -222,7 +222,7 @@ try:
                     # 체리피커 방지용 깃허브 Star 유도 문구
                     st.caption(
                         "💡 소스코드만 날름 가져가는 분들이 많습니다. 개발자의 땀과 노력에 대한 최소한의 예의로 "
-                        "[GitHub Star ⭐](https://github.com/gohard-lab)를 부탁드립니다!"
+                        "[GitHub Star ⭐](https://github.com/gohard-lab/cheiri_driving_dashboard)를 부탁드립니다!"
                     )
                     confirm_bulk = st.checkbox("🚨 선택한 모든 로그를 영구 삭제하는 것에 동의합니다.")
                     btn_bulk_delete = st.form_submit_button("🗑️ 선택 항목 영구 삭제")
