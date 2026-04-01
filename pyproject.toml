@@ -1,12 +1,14 @@
-[project]
+[tool.poetry]
 name = "usage_logs"
 version = "0.1.0"
 description = "Streamlit Usage Tracker"
-requires-python = ">=3.9"
-dependencies = [
-    "streamlit",
-    "supabase",
-    "requests",
-    "python-dotenv",
-    "streamlit-javascript"
-]
+authors = ["gohard-lab"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+streamlit = "*"
+supabase = "*"
+requests = "*"
+python-dotenv = "*"
+streamlit-javascript = "*"
