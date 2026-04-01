@@ -5,7 +5,7 @@ st.set_page_config(page_title="사용자 분석 대시보드", layout="wide")
 
 import pandas as pd
 import plotly.express as px
-from tracker import get_supabase_client
+from tracker_web import get_supabase_client
 from supabase import create_client
 
 # 1. secrets.toml에서 정보를 안전하게 불러옵니다.
