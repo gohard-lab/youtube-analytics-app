@@ -221,8 +221,17 @@ try:
         c2.metric("방문 도시 수", f"{df['city'].nunique()}곳")
         
         # Prevent error if dataframe is empty after filtering
-        last_city = df.iloc[-1]['city'] if not df.empty else "N/A"
+        # Unknown, null, 빈 값 제외 후 최신 도시 추출 (timestamp DESC 정렬 기준)
+        if not df.empty and 'city' in df.columns:
+            valid_df = df[df['city'].notnull() & ~df['city'].isin(['Unknown', '', 'null'])]
+            last_city = valid_df.iloc[0]['city'] if not valid_df.empty else "N/A"
+        else:
+            last_city = "N/A"
+
         c3.metric("최근 활동", last_city)
+
+        # last_city = df.iloc[-1]['city'] if not df.empty else "N/A"
+        # c3.metric("최근 활동", last_city)
         # ----------------------------------------------------------
 
         # ==========================================================
